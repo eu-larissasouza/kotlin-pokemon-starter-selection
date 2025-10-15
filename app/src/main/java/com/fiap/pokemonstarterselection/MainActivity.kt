@@ -1,5 +1,6 @@
 package com.fiap.pokemonstarterselection
 
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,11 +9,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,11 +25,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -78,32 +84,108 @@ fun PokemonStarterScreen(modifier: Modifier = Modifier) {
     // quando rotaciona a tela, o estado é destruido
     // para isso não acontecer use rememberSalvable
 
-    // ele só funciona para tipos primitivos
+    // rememberSalvable só funciona para tipos primitivos
     // preciso ensinar para o Kotlin como restaurar o estado
-    var pokemonSelected by remember {
-        mutableStateOf(starters.first())
+    var pokemonSelected by rememberSaveable(
+        stateSaver = Saver(
+            save = {
+                listOf(
+                    it.name,
+                    it.imageRes
+                )
+            },
+            restore = {
+                Pokemon(
+                    name = it[0] as String,
+                    imageRes = it[1] as Int,
+                )
+            })
+    ) { mutableStateOf(starters.first()) }
+
+    // no Jetpack Compose, o layout é responsivo por padrão, mas é possível
+    // tratar portrait e landscape de forma diferente.
+    val config = LocalConfiguration.current
+    val isPortrait = config.orientation ==
+            Configuration.ORIENTATION_PORTRAIT
+
+    if (isPortrait) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // comum separar por responsabilidades, mesmo que alguns
+            // composables não sejam reutilizados
+            PokeLogo(R.drawable.logo_pokemon, "Pokelogo")
+
+            PokeHeader("Escolha seu Pokémon Inicial")
+            Spacer(modifier = Modifier.weight(1f))
+
+            PokemonCard(pokemonSelected)
+            Spacer(modifier = Modifier.weight(1f))
+
+            // it é um parametro do Kotlin que indica o retorno
+            PokemonOptionsList(
+                options = starters,
+                pokemonSelected = pokemonSelected,
+                onSelected = { pokemonSelected = it },
+            )
+        }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Esquerda: Pokémon selecionado
+            Box(
+                modifier = Modifier.weight(1f), contentAlignment =
+                    Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    PokeLogo(R.drawable.logo_pokemon, "Pokelogo")
+
+                    PokemonCard(pokemon = pokemonSelected)
+                }
+            }
+
+            // Direita: opções
+            Box(
+                modifier = Modifier.weight(1f), contentAlignment =
+                    Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    PokeHeader("Escolha seu Pokémon inicial")
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    PokemonOptionsList(
+                        options = starters,
+                        pokemonSelected,
+                        onSelected = { pokemonSelected = it },
+                    )
+                }
+            }
+        }
     }
+}
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // comum separar por responsabilidades, mesmo que alguns
-        // composables não sejam reutilizados
-        PokeHeader("Escolha seu Pokémon Inicial")
-
-        PokemonCard(pokemonSelected)
-
-        // it é um parametro do Kotlin que indica o retorno
-        PokemonOptionsList(
-            options = starters,
-            pokemonSelected = pokemonSelected,
-            onSelected = { pokemonSelected = it },
-        )
-    }
+@Composable
+fun PokeLogo(imageRes: Int, desc: String) {
+    Image(
+        painter = painterResource(id = imageRes),
+        contentDescription = desc,
+        modifier = Modifier
+            .height(100.dp)
+            .fillMaxWidth()
+    )
 }
 
 @Composable
